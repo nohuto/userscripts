@@ -2,9 +2,13 @@
 
 Features can be enabled/disabled via the `config` object. As written in the scripts, some features are based on other scripts, which I often have rewritten quite a lot to be more efficient.
 
-You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (`New > New from file > Save & Close`).
+You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (`New > New from file > Save & Close`, or raw URLs & `Install from URL`)
 
 ## Twitch
+
+```powershell
+https://raw.githubusercontent.com/nohuto/userscripts/refs/heads/main/twitch.js
+```
 
 - Ad blocking 
 - Background playback
@@ -15,8 +19,12 @@ You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmon
 
 ## YouTube
 
+```powershell
+https://raw.githubusercontent.com/nohuto/userscripts/refs/heads/main/youtube.js
+```
+
 - Automatic theater mode
-- SponsorBlock skipping
+- Configurable SponsorBlock skipping
 - Hide thumbnails
 - Hide `Voice search`, `+ Create`, `Notifications`, filter chips, `Join` & `Super Thanks`
 - Hide `Explore`, `More from YouTube`, `Report history` & sidebar footer links
