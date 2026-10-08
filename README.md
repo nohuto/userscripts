@@ -1,8 +1,8 @@
-# YouTube & Twitch userscripts
+# Userscripts
 
 Features can be enabled/disabled via the `config` object. As written in the scripts, some features are based on other scripts, which I often have rewritten quite a lot to be more efficient.
 
-You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (New > New from file).
+You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (`New > New from file > Save & Close`).
 
 ## Twitch
 
