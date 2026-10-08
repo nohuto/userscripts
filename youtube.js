@@ -26,7 +26,7 @@
     // Settings
     //
     const config = {
-        theaterMode: true, // bool
+        theaterMode: true, // bool (desktop watch pages)
         skipSponsors: true, // bool
         sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (category ids to skip/highlight, [] = none)
         sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
@@ -154,8 +154,9 @@
     }
 
     function start() {
+        const theaterMode = config.theaterMode && location.hostname !== 'm.youtube.com' && !/^\/(?:embed|v)\//.test(location.pathname);
         const skipSponsors = config.skipSponsors && config.sponsorCategories.length > 0;
-        if (!config.theaterMode && !skipSponsors && !config.blockShorts && !config.hideExplore && !config.hideMoreFromYouTube) return;
+        if (!theaterMode && !skipSponsors && !textSelector && !config.blockShorts) return;
         if (textSelector) document.querySelectorAll(textSelector).forEach(cleanText);
 
         const playerSelector = '#movie_player video, #shorts-player video, video.html5-main-video';
@@ -229,7 +230,7 @@
         }
 
         function scheduleTheater() {
-            if (!config.theaterMode || theaterTimer !== null || theaterVideoId === videoId) return;
+            if (!theaterMode || theaterTimer !== null || theaterVideoId === videoId) return;
             // yt can reset the layout while initializing its player controls
             theaterTimer = setTimeout(() => {
                 theaterTimer = null;
@@ -270,7 +271,7 @@
             if (player) {
                 // requests can finish before youtube attaches the video
                 if (noticeData) notify(noticeData);
-                for (const type of ['timeupdate', 'seeking', 'play']) player.addEventListener(type, playback);
+                if (data.segments.length || data.highlight) for (const type of ['timeupdate', 'seeking', 'play']) player.addEventListener(type, playback);
                 playback({ type: 'play' });
             }
         }
@@ -313,6 +314,8 @@
                 }
                 if (revision !== generation || getVideoId() !== id) return;
                 data = result;
+                // empty responses do not need playback event handlers
+                if (player && (data.segments.length || data.highlight)) for (const type of ['timeupdate', 'seeking', 'play']) player.addEventListener(type, playback);
                 index = 0;
                 previousTime = -1;
                 if (result.segments.length) notify({ title: 'Skippable segments found (' + result.count + ')' });
@@ -343,7 +346,7 @@
 
         function navigate() {
             if (blockShortsRoute()) { stopPlayback(); return; }
-            const nextId = config.theaterMode || skipSponsors ? getVideoId() : '';
+            const nextId = theaterMode || skipSponsors ? getVideoId() : '';
             if (nextId !== videoId) {
                 stopPlayback();
                 videoId = nextId;
@@ -373,7 +376,7 @@
                         if (node.tagName === 'VIDEO' && node.matches(playerSelector)) nextPlayer = node;
                         else if (node.firstElementChild) nextPlayer ||= node.querySelector(playerSelector);
                     }
-                    if (config.theaterMode && theaterVideoId !== videoId && (node.tagName === 'YTD-WATCH-FLEXY' || node.matches('button.ytp-size-button') || node.firstElementChild && node.querySelector('ytd-watch-flexy, button.ytp-size-button'))) updateTheater = true;
+                    if (theaterMode && theaterVideoId !== videoId && (node.tagName === 'YTD-WATCH-FLEXY' || node.matches('button.ytp-size-button') || node.firstElementChild && node.querySelector('ytd-watch-flexy, button.ytp-size-button'))) updateTheater = true;
                 }
             }
             if (player && !player.isConnected) bindPlayer(null);
@@ -383,7 +386,7 @@
 
         window.addEventListener('yt-navigate-start', stopPlayback);
         for (const type of ['yt-navigate-finish', 'popstate', 'pageshow']) window.addEventListener(type, navigate);
-        if (config.theaterMode || skipSponsors) document.addEventListener('loadedmetadata', event => {
+        if (theaterMode || skipSponsors) document.addEventListener('loadedmetadata', event => {
             if (event.target.matches?.(playerSelector)) navigate();
         }, true);
         navigate();

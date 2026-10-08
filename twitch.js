@@ -887,7 +887,9 @@
             const headers = {
                 'Client-ID': ClientID,
                 'X-Device-Id': GQLDeviceID,
-                Authorization: AuthorizationHeader,
+                ...AuthorizationHeader && {
+                    Authorization: AuthorizationHeader
+                },
                 ...ClientIntegrityHeader && {
                     'Client-Integrity': ClientIntegrityHeader
                 },
@@ -1543,13 +1545,20 @@
     const cleanedVideos = new WeakSet;
     const clickedGates = new WeakSet;
     const gateSelector = '[data-a-target="content-classification-gate-overlay-start-watching-button"], [data-a-target="player-overlay-content-gate"]';
-    const addedSelector = [config.removeCarousel ? 'video' : '', config.keepTabActive ? gateSelector : ''].filter(Boolean).join(', ');
+    const addedSelector = [config.removeCarousel ? 'video, source' : '', config.keepTabActive ? gateSelector : ''].filter(Boolean).join(', ');
     function cleanVideo(video) {
-        if (!config.removeCarousel || cleanedVideos.has(video) || !video.closest('[class*="carousel"]')) return;
+        if (!config.removeCarousel) return;
+        if (video.tagName === 'SOURCE') {
+            video = video.closest('video');
+            if (!video) return;
+            cleanedVideos.delete(video);
+        }
+        if (cleanedVideos.has(video) || !video.closest('[class*="carousel"]')) return;
         cleanedVideos.add(video);
         video.muted = true;
         // css alone leaves carousel audio and downloads running
         nativePause.call(video);
+        if (video.srcObject) video.srcObject = null;
         video.removeAttribute('src');
         video.querySelectorAll('source').forEach(source => source.remove());
         video.load();
@@ -1566,11 +1575,11 @@
     }
     function processAddedElement(element) {
         if (element.nodeType !== 1) return;
-        element.tagName === 'VIDEO' && cleanVideo(element);
+        (element.tagName === 'VIDEO' || element.tagName === 'SOURCE') && cleanVideo(element);
         (element.tagName === 'BUTTON' || element.hasAttribute('data-a-target')) && dismissGate(element);
         if (!element.firstElementChild) return;
         element.querySelectorAll(addedSelector).forEach(child => {
-            child.tagName === 'VIDEO' ? cleanVideo(child) : dismissGate(child);
+            child.tagName === 'VIDEO' || child.tagName === 'SOURCE' ? cleanVideo(child) : dismissGate(child);
         });
     }
     function startUI() {
@@ -1611,7 +1620,7 @@
         if (!config.removeCarousel && !config.keepTabActive) return;
         processAddedElement(document.documentElement);
         new MutationObserver(mutations => {
-            for (const mutation of mutations) if (mutation.type === 'attributes') if (mutation.attributeName === 'src' && mutation.target.tagName === 'VIDEO' && mutation.target.hasAttribute('src')) {
+            for (const mutation of mutations) if (mutation.type === 'attributes') if (mutation.attributeName === 'src' && (mutation.target.tagName === 'VIDEO' || mutation.target.tagName === 'SOURCE') && mutation.target.hasAttribute('src')) {
                 cleanedVideos.delete(mutation.target);
                 cleanVideo(mutation.target);
             } else mutation.attributeName === 'disabled' && dismissGate(mutation.target); else for (const node of mutation.addedNodes) processAddedElement(node);
@@ -1633,6 +1642,14 @@
             childList: true
         });
     }
+    // worker media sources bypass src mutations and can restart the carousel
+    if (config.removeCarousel) for (const type of ['loadstart', 'play']) document.addEventListener(type, event => {
+        const video = event.target;
+        if (video.tagName === 'VIDEO' && (video.srcObject || !video.paused)) {
+            cleanedVideos.delete(video);
+            cleanVideo(video);
+        }
+    }, true);
     if (config.keepTabActive) {
         // spoof visibility instead of overriding pause so normal user controls keep working
         for (const [property, value] of [['hidden', false], ['webkitHidden', false], ['visibilityState', 'visible']]) try {
@@ -1657,7 +1674,8 @@
                 if (typeof callback !== 'function') throw new TypeError('IntersectionObserver callback must be a function');
                 super((entries, observer) => callback.call(observer, entries.map(entry => {
                     const target = entry.target;
-                    if (target.tagName !== 'VIDEO' && !target.closest('[data-a-target="player-overlay"], [data-a-target="player-container"]')) return entry;
+                    // carousel media must keep its native intersection state
+                    if (target.closest('[class*="carousel"]') || target.tagName !== 'VIDEO' && !target.closest('[data-a-target="player-overlay"], [data-a-target="player-container"]')) return entry;
                     // keep native getters and timing fields while changing only player visibility
                     return new Proxy(entry, {
                         get(original, property) {
