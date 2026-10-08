@@ -15,7 +15,8 @@ https://raw.githubusercontent.com/nohuto/userscripts/refs/heads/main/twitch.js
 - Remove carousel media
 - Hide `Bits`/`Prime` promotions & extension banners
 - Hide sidebar `Stories` & recommended categories
-- Hide `Whispers`, `Notifications`, `Subscribe`, `Gift a Sub`
+- Hide `Whispers`, `Notifications`, `Subscribe`, `Gift a Sub`, `Share`, Drops & gifted sub highlights, Hype Train
+- Hide channel goals, custom panels & chat leaderboard
 
 ## YouTube
 
@@ -26,6 +27,7 @@ https://raw.githubusercontent.com/nohuto/userscripts/refs/heads/main/youtube.js
 - Automatic theater mode
 - Configurable SponsorBlock skipping
 - Hide thumbnails
+- Hide comments, description box, related videos & `Most relevant` in subscriptions
 - Hide `Voice search`, `+ Create`, `Notifications`, filter chips, `Join` & `Super Thanks`
 - Hide `Explore`, `More from YouTube`, `Report history` & sidebar footer links
 - Hide/block `Shorts` everywhere

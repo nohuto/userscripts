@@ -9,7 +9,6 @@
 // @match        https://m.youtube.com/*
 // @match        https://www.youtube-nocookie.com/embed/*
 // @run-at       document-start
-// @grant        GM.notification
 // @grant        GM.xmlHttpRequest
 // @connect      *
 // ==/UserScript==
@@ -31,16 +30,20 @@
         skipSponsors: true, // bool
         sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (category ids to skip/highlight, [] = none)
         sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
-        sponsorNotifications: true, // bool
+        sponsorNotifications: true, // bool (notices inside the player)
         sponsorHashing: true, // bool (true sends a hash prefix, false sends the video id)
         sponsorServer: 'sponsor.ajay.app', // string (api hostname without scheme/path)
-        hideThumbnails: true, // bool
+        hideThumbnails: false, // bool
         hideVoiceSearch: true, // bool
         hideCreateButton: true, // bool
         hideNotifications: true, // bool
         hideFilterChips: true, // bool (content filter bars)
         hideJoin: true, // bool (membership buttons)
         hideSuperThanks: true, // bool (thanks donation buttons)
+        hideComments: true, // bool
+        hideDescription: false, // bool (description box with views and upload date)
+        hideRelatedVideos: true, // bool (recommended videos beside/below the player)
+        hideMostRelevant: true, // bool (most relevant in subscriptions)
         hideExplore: true, // bool (entire explore sidebar section)
         hideMoreFromYouTube: true, // bool (entire more from youtube section)
         hideReportHistory: false, // bool
@@ -69,14 +72,22 @@
     if (config.hideFilterChips) rules.push('ytd-app #frosted-glass { height: var(--ytd-masthead-height, 56px) !important; }');
     hide(config.hideJoin, '#sponsor-button, #join-button, :is(ytd-button-renderer, button-view-model, yt-button-view-model, yt-button-shape, .ytFlexibleActionsViewModelAction):has(button:is([aria-label="Join"], [aria-label^="Join this channel"], [aria-label="Mitglied werden"], [aria-label="Beitreten"]))');
     hide(config.hideSuperThanks, ':is(ytd-button-renderer, button-view-model, yt-button-view-model, yt-button-shape, .ytFlexibleActionsViewModelAction):has(button:is([aria-label="Thanks"], [aria-label*="Super Thanks"], [aria-label="Danke"], [aria-label*="Super-Dank"]))');
+    hide(config.hideComments, 'ytd-comments, ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"], ytm-comment-section-renderer, ytm-comments-entry-point-header-renderer, ytm-item-section-renderer[section-identifier="comments-entry-point"]');
+    hide(config.hideDescription, 'ytd-watch-metadata #description, ytd-video-secondary-info-renderer #description, ytm-watch .slim-video-metadata-info');
+    if (config.hideRelatedVideos) {
+        hide(true, 'ytd-watch-flexy #related, ytm-item-section-renderer[section-identifier="related-items"]');
+        // collapse the video column while keeping chat, playlists and open panels available
+        const panels = 'ytd-live-chat-frame, ytd-playlist-panel-renderer:not([hidden]), ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]' + (config.hideComments ? ':not([target-id="engagement-panel-comments-section"])' : '');
+        hide(true, 'ytd-watch-flexy #secondary:not(:has(' + panels + '))');
+    }
     hide(config.hideExplore, 'ytd-guide-section-renderer:has(a[href="/feed/trending"]), ytd-guide-section-renderer:has(a[href="/gaming"]), ytd-guide-section-renderer:has(a[href="/feed/explore"])');
     hide(config.hideMoreFromYouTube, 'ytd-guide-section-renderer:has(a[href^="https://www.youtube.com/premium"]), ytd-guide-section-renderer:has(a[href="/premium"]), ytd-guide-section-renderer:has(a[href^="https://music.youtube.com"]), ytd-guide-section-renderer:has(a[href^="https://www.youtubekids.com"])');
     hide(config.hideReportHistory, 'ytd-guide-entry-renderer:has(a[href^="/reporthistory"]), ytd-guide-entry-renderer:has(a[href^="https://www.youtube.com/reporthistory"])');
     hide(config.hideSidebarFooter, 'ytd-guide-renderer #footer, ytd-guide-renderer #guide-links-primary, ytd-guide-renderer #guide-links-secondary, ytd-guide-renderer #copyright');
     const shortsLink = 'a:is([href^="/shorts/"], [href^="https://www.youtube.com/shorts/"], [href^="https://m.youtube.com/shorts/"])';
     // spa guide buttons can have a title without an href
-    hide(config.blockShorts, 'ytd-reel-shelf-renderer, ytd-reel-item-renderer, ytm-reel-shelf-renderer, ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, yt-shorts-lockup-view-model, :is(ytd-rich-section-renderer, ytd-rich-shelf-renderer, .ytGridShelfViewModelHost, ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-playlist-video-renderer, ytd-playlist-panel-video-renderer, yt-lockup-view-model, ytm-media-item, ytm-video-with-context-renderer, ytm-compact-video-renderer):has(' + shortsLink + '), :is(ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer):has(a:is([href^="/shorts"], [href$="/shorts"], [title="Shorts"], [aria-label="Shorts"])), .pivot-shorts, yt-tab-shape:has(a[href$="/shorts"]), [data-nohuto-hidden]');
-    if (config.hideExplore || config.hideMoreFromYouTube) rules.push('ytd-guide-section-renderer[data-nohuto-hidden] { display: none !important; }');
+    hide(config.blockShorts, 'ytd-reel-shelf-renderer, ytd-reel-item-renderer, ytm-reel-shelf-renderer, ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, yt-shorts-lockup-view-model, :is(ytd-rich-section-renderer, ytd-rich-shelf-renderer, .ytGridShelfViewModelHost, ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-playlist-video-renderer, ytd-playlist-panel-video-renderer, yt-lockup-view-model, ytm-media-item, ytm-video-with-context-renderer, ytm-compact-video-renderer):has(' + shortsLink + '), :is(ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer):has(a:is([href^="/shorts"], [href$="/shorts"], [title="Shorts"], [aria-label="Shorts"])), .pivot-shorts, yt-tab-shape:has(a[href$="/shorts"])');
+    hide(config.blockShorts || config.hideExplore || config.hideMoreFromYouTube || config.hideMostRelevant, '[data-userscript-hidden]');
     if (rules.length) {
         const style = document.createElement('style');
         style.textContent = rules.join('\n');
@@ -87,6 +98,7 @@
     // native css has no text selector for headings and filter chips
     const textSelector = [
         config.hideExplore || config.hideMoreFromYouTube ? 'ytd-guide-section-renderer #header, ytd-guide-section-renderer #header-heading, ytd-guide-section-renderer #guide-section-title' : '',
+        config.hideMostRelevant ? ':is(ytd-rich-shelf-renderer, ytm-rich-shelf-renderer) :is(#title, h2)' : '',
         config.blockShorts ? 'yt-chip-cloud-chip-renderer, yt-chip-shape, chip-view-model, yt-tab-shape, tp-yt-paper-tab' : ''
     ].filter(Boolean).join(', ');
     function cleanText(element) {
@@ -95,16 +107,15 @@
         if (section && element.matches('#header, #header-heading, #guide-section-title')) {
             if (config.hideExplore && ['explore', 'entdecken'].includes(label) ||
                 config.hideMoreFromYouTube && ['more from youtube', 'mehr von youtube'].includes(label)) {
-                section.setAttribute('data-nohuto-hidden', '');
-            } else if (element.id === 'header-heading' || element.id === 'guide-section-title') section.removeAttribute('data-nohuto-hidden');
+                section.setAttribute('data-userscript-hidden', '');
+            } else if (element.id === 'header-heading' || element.id === 'guide-section-title') section.removeAttribute('data-userscript-hidden');
+        } else if (config.hideMostRelevant && element.matches('#title, h2')) {
+            const shelf = element.closest('ytd-rich-section-renderer, ytm-rich-shelf-renderer');
+            if (shelf) shelf.toggleAttribute('data-userscript-hidden',
+                !!(location.pathname === '/feed/subscriptions' || shelf.closest('ytd-browse[page-subtype="subscriptions"]')) &&
+                ['most relevant', 'am relevantesten'].includes(label));
         } else if (config.blockShorts) {
-            element.toggleAttribute('data-nohuto-hidden', label === 'shorts');
-        }
-    }
-
-    function notify(details) {
-        if (config.sponsorNotifications && typeof GM.notification === 'function') {
-            GM.notification({ silent: true, timeout: 5000, ...details });
+            element.toggleAttribute('data-userscript-hidden', label === 'shorts');
         }
     }
 
@@ -158,8 +169,45 @@
         let theaterVideoId = '';
         let theaterTimer = null;
         let highlightNotified = false;
+        let notice = null;
+        let noticeData = null;
+        let noticeTimer = null;
         const cache = new Map();
         const categories = skipSponsors ? encodeURIComponent(JSON.stringify(config.sponsorCategories)) : '';
+
+        function notify(details) {
+            if (!config.sponsorNotifications) return;
+            noticeData = details;
+            const root = player?.closest('#movie_player, #shorts-player, .html5-video-player') || player?.parentElement;
+            if (!root) return;
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.className = 'userscript-sponsor-notice';
+                notice.setAttribute('role', 'status');
+                notice.style.cssText = 'position:absolute;top:0;left:0;z-index:70;padding:5px;color:white;background:rgba(0,0,0,.8);font:14px/1.4 sans-serif;max-width:calc(100% - 10px);pointer-events:none;';
+            }
+            if (notice.parentElement !== root) {
+                if (getComputedStyle(root).position === 'static') root.style.position = 'relative';
+                root.appendChild(notice);
+            }
+            notice.replaceChildren();
+            let label = notice;
+            if (details.onclick) {
+                label = document.createElement('button');
+                label.type = 'button';
+                label.style.cssText = 'border:0;padding:0;color:inherit;background:none;font:inherit;text-align:left;cursor:pointer;pointer-events:auto;';
+                label.onclick = event => { event.stopPropagation(); details.onclick(); };
+                label.onkeydown = event => event.stopPropagation();
+                notice.appendChild(label);
+            }
+            label.textContent = details.title;
+            clearTimeout(noticeTimer);
+            noticeTimer = setTimeout(() => {
+                notice.remove();
+                noticeData = null;
+                noticeTimer = null;
+            }, 5000);
+        }
 
         function getVideoId() {
             const id = new URLSearchParams(location.search).get('v') || location.pathname.match(/^\/(?:embed|v|shorts|live)\/([\w-]{11})(?:\/|$)/)?.[1];
@@ -198,7 +246,7 @@
             if (segment && time >= segment.segment[0]) {
                 index++;
                 player.currentTime = Math.min(segment.segment[1], Number.isFinite(player.duration) ? player.duration : Infinity);
-                notify({ title: 'Skipped ' + segment.category + ' segment', text: document.title });
+                notify({ title: 'Skipped ' + segment.category + ' segment' });
             }
             previousTime = player.currentTime;
             if (!highlightNotified && data.highlight && player.currentTime < data.highlight.segment[0]) {
@@ -206,7 +254,7 @@
                 const currentId = videoId;
                 const time = data.highlight.segment[0];
                 notify({
-                    title: 'Point of interest found', text: 'Highlight at ' + durationString(time) + '\n' + document.title,
+                    title: 'Highlight at ' + durationString(time) + ' (jump)',
                     onclick: () => { if (videoId === currentId && player?.isConnected) player.currentTime = time; }
                 });
             }
@@ -216,9 +264,12 @@
             if (player === next) return;
             if (player) for (const type of ['timeupdate', 'seeking', 'play']) player.removeEventListener(type, playback);
             player = next;
+            notice?.remove();
             index = 0;
             previousTime = -1;
             if (player) {
+                // requests can finish before youtube attaches the video
+                if (noticeData) notify(noticeData);
                 for (const type of ['timeupdate', 'seeking', 'play']) player.addEventListener(type, playback);
                 playback({ type: 'play' });
             }
@@ -264,7 +315,7 @@
                 data = result;
                 index = 0;
                 previousTime = -1;
-                if (result.segments.length && window.self === window.top) notify({ title: 'Skippable segments found', text: result.count + ' segments, ' + result.segments.length + ' after merging\n' + document.title });
+                if (result.segments.length) notify({ title: 'Skippable segments found (' + result.count + ')' });
                 playback({ type: 'play' });
             } catch (error) {
                 if (revision === generation) {
@@ -280,6 +331,9 @@
             theaterTimer = null;
             request?.abort?.();
             request = null;
+            clearTimeout(noticeTimer);
+            noticeTimer = null;
+            noticeData = null;
             bindPlayer(null);
             videoId = '';
             data = { segments: [], highlight: null, count: 0 };

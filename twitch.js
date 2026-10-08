@@ -35,8 +35,15 @@
         hideExtensionBanner: true, // bool
         hideWhispers: true, // bool
         hideNotifications: true, // bool
+        hideShareButton: true, // bool (channel share button)
+        hideDropsHighlights: true, // bool (drops reward cards above chat)
+        hideGiftedSubHighlights: true, // bool (gifted sub cards above chat)
+        hideHypeTrain: true, // bool
         hideSubscribe: true, // bool
         hideGiftSub: true, // bool
+        hideGoals: true, // bool (channel goals heading & cards)
+        hideChannelPanels: true, // bool (custom panels below about box)
+        hideLeaderboard: true, // bool (entire bar above chat)
         blockAds: true, // bool
         keepTabActive: true // bool (keep playback active in background tabs)
     };
@@ -1572,15 +1579,29 @@
         function hide(enabled, selectors) {
             if (enabled) rules.push(selectors + ' { display: none !important; }');
         }
-        hide(config.hideStories, '[class*="storiesLeftNavSection"], [data-a-target="side-nav-stories"]');
+        // expanded and collapsed story controls have different wrappers with their own margins
+        hide(config.hideStories, '[class*="storiesLeftNavSection"], [data-a-target="side-nav-stories"], #side-nav div:has(> button [aria-label="Open stories"], > button [aria-label$="channels with unread Stories" i]), #side-nav div:has(> div > button > [class*="storiesLeftNavSectionCollapsedButton"])');
         hide(config.hideRecommendedCategories, '.side-nav-section:has(a[href^="/directory/category/"]), .side-nav-section:has(a[href^="/directory/game/"]), [data-a-target="side-nav-games-list"], [data-a-target="side-nav-recommended-games"]');
         hide(config.removeCarousel, '[class*="carousel"]:has(video)');
-        hide(config.hidePromoButtons, 'div:has(> div > button[data-a-target="top-nav-get-bits-button"]), .top-nav__prime, .prime-offers__pill, button:has(path[d^="m13 8-5.349"])');
+        hide(config.hidePromoButtons, 'div:has(> div > button[data-a-target="top-nav-get-bits-button"]), .top-nav__prime, [data-a-target="prime-offers-icon"], .prime-offers__pill, button:has(path[d^="m13 8-5.349"])');
         hide(config.hideExtensionBanner, '[data-test-selector="extension-disclaimer"]');
         hide(config.hideWhispers, '[data-a-target="whisper-box-button"], [data-a-target="whispers-button"], .top-nav [aria-label="Whispers"], .top-nav [aria-label="Flüstern"]');
-        hide(config.hideNotifications, '[data-a-target="notifications-button"], [data-a-target="activity-feed-button"], .top-nav [aria-label="Notifications"], .top-nav [aria-label="Benachrichtigungen"]');
+        const notifications = '[data-a-target="notifications-button"], [data-a-target="activity-feed-button"], .top-nav :is(button, [role="button"]):is([aria-label*="Notifications" i], [aria-label*="Benachrichtigungen" i], [title="Notifications"], [title="Benachrichtigungen"])';
+        hide(config.hideNotifications, notifications + ', .top-nav div:has(> :is(' + notifications + '):only-child)');
+        hide(config.hideShareButton, '[data-a-target="share-button"], div:has(> button[data-a-target="share-button"]:only-child)');
+        hide(config.hideDropsHighlights, '.community-highlight-stack__card:has([class*="dropsHighlight"]), [class*="dropsHighlight"]');
+        hide(config.hideGiftedSubHighlights, '.community-highlight-stack__card:has(.gift-highlight-gradient-container)');
+        hide(config.hideHypeTrain, '.sticky-community-highlight:has([class*="hypeTrainBanner"], [aria-controls="hype-train-expanded-view"], #hype-train-expanded-view), .community-highlight-stack__card:has([class*="hypeTrainBanner"], #hype-train-expanded-view), [class*="hypeTrainBanner"], #hype-train-expanded-view');
         hide(config.hideSubscribe, '[data-a-target="subscribe-button"], [data-a-target="subscribe-button-dropdown"]');
-        hide(config.hideGiftSub, '[data-a-target="gift-button"], [data-a-target="gift-sub-button"]');
+        const giftWrapper = '[data-target="channel-header-right"] div:has(> div:only-child > div:only-child > button[data-a-target="gift-button"])';
+        hide(config.hideGiftSub, '[data-a-target="gift-button"], [data-a-target="gift-sub-button"], ' + giftWrapper);
+        if (config.hideSubscribe) rules.push(giftWrapper + ' { margin-right: 0 !important; }');
+        hide(config.hideSubscribe && config.hideGiftSub, '[data-target="channel-header-right"] > div:has([data-a-target="subscribe-button"]):has([data-a-target="gift-button"])');
+        // the outer goals wrapper keeps a bottom margin when only its content is hidden
+        hide(config.hideGoals, '.about-section__actions, .about-section > div:has(> .about-section__actions)');
+        hide(config.hideChannelPanels, '.channel-panels');
+        // the unstyled chat child wraps the leaderboard and its navigation arrows
+        hide(config.hideLeaderboard, '.chat-room__content > div:has([data-testid^="leaderboard-"], [class*="bitsLeaderboard"], button[aria-label="Next leaderboard set"], button[aria-label="Previous leaderboard set"]), [data-test-selector="channel-leaderboard-container"], .channel-leaderboard');
         hide(config.blockAds, '[data-test-selector="sda-wrapper"]');
         if (rules.length) {
             const style = document.createElement('style');
