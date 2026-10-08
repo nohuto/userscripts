@@ -9,9 +9,9 @@ You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmon
 - Ad blocking 
 - Background playback
 - Remove carousel media
-- Hide Bits/Prime promotions & extension banners
-- Hide sidebar Stories & recommended categories
-- Hide Whispers, Notifications, Subscribe, Gift a Sub
+- Hide `Bits`/`Prime` promotions & extension banners
+- Hide sidebar `Stories` & recommended categories
+- Hide `Whispers`, `Notifications`, `Subscribe`, `Gift a Sub`
 
 ## YouTube
 
