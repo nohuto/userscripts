@@ -27,6 +27,7 @@
     //
     const config = {
         theaterMode: true, // bool (desktop watch pages)
+        preferredQuality: 1080, // number (video height, e.g. 2160, 1440, 1080, 720, uses the next lower available level, 0 = youtube default)
         skipSponsors: true, // bool
         sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (category ids to skip/highlight, [] = none)
         sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
@@ -48,7 +49,14 @@
         hideMoreFromYouTube: true, // bool (entire more from youtube section)
         hideReportHistory: false, // bool
         hideSidebarFooter: true, // bool
-        blockShorts: true // bool
+        blockShorts: true, // bool
+        disableAnimations: false, // bool (page transitions & animations outside the player, cosmetic, adds ~50ms style work on feed loads)
+        disableHoverPreviews: true, // bool (hides and pauses inline previews, yt still starts loading them)
+        replaceClickbait: true, // bool
+        replaceClickbaitThumbnails: true, // bool (dearrow thumbnails)
+        filterTitles: [], // string[] (case insensitive regex sources matched against titles, e.g. ['giveaway', 'reaction'])
+        filterChannels: [], // string[] (channel names or @handles, case insensitive)
+        filterMinDuration: 0 // number (seconds, hides shorter videos, 0 = off)
     };
 
     function blockShortsRoute() {
@@ -57,6 +65,12 @@
         return true;
     }
     if (blockShortsRoute()) return;
+
+    // yt reads this sticky quality on player start, so the first stream request already uses it
+    if (config.preferredQuality > 0) try {
+        const now = Date.now();
+        localStorage.setItem('yt-player-quality', JSON.stringify({ data: JSON.stringify({ quality: config.preferredQuality, previousQuality: config.preferredQuality }), expiration: now + 31104000000, creation: now }));
+    } catch { }
 
     const rules = [];
     function hide(enabled, selectors) {
@@ -87,7 +101,27 @@
     const shortsLink = 'a:is([href^="/shorts/"], [href^="https://www.youtube.com/shorts/"], [href^="https://m.youtube.com/shorts/"])';
     // spa guide buttons can have a title without an href
     hide(config.blockShorts, 'ytd-reel-shelf-renderer, ytd-reel-item-renderer, ytm-reel-shelf-renderer, ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, yt-shorts-lockup-view-model, :is(ytd-rich-section-renderer, ytd-rich-shelf-renderer, .ytGridShelfViewModelHost, ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-playlist-video-renderer, ytd-playlist-panel-video-renderer, yt-lockup-view-model, ytm-media-item, ytm-video-with-context-renderer, ytm-compact-video-renderer):has(' + shortsLink + '), :is(ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer):has(a:is([href^="/shorts"], [href$="/shorts"], [title="Shorts"], [aria-label="Shorts"])), .pivot-shorts, yt-tab-shape:has(a[href$="/shorts"])');
-    hide(config.blockShorts || config.hideExplore || config.hideMoreFromYouTube || config.hideMostRelevant, '[data-userscript-hidden]');
+    if (config.disableAnimations) {
+        const motion = ['ytd-masthead', 'tp-yt-app-drawer', 'ytd-browse', 'ytd-search', 'ytd-watch-flexy #below', 'ytd-watch-flexy #secondary', 'ytd-popup-container'].map(root => root + ' *').join(', ');
+        rules.push(motion + ' { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; scroll-behavior: auto !important; }');
+    }
+    hide(config.disableHoverPreviews, '#video-preview');
+    if (config.disableHoverPreviews) document.addEventListener('play', event => {
+        // hidden previews keep playing and downloading their muted video
+        if (event.target.tagName === 'VIDEO' && event.target.closest('#video-preview')) event.target.pause();
+    }, true);
+    const titlePatterns = config.filterTitles.flatMap(source => {
+        try {
+            return [new RegExp(source, 'i')];
+        } catch (error) {
+            console.warn('[YouTube Filter] invalid title pattern', source, error.message);
+            return [];
+        }
+    });
+    const blockedChannels = new Set(config.filterChannels.map(name => name.trim().toLowerCase()));
+    const filterCards = titlePatterns.length > 0 || blockedChannels.size > 0 || config.filterMinDuration > 0;
+    const brandCards = config.replaceClickbait || config.replaceClickbaitThumbnails;
+    hide(config.blockShorts || config.hideExplore || config.hideMoreFromYouTube || config.hideMostRelevant || filterCards, '[data-userscript-hidden]');
     if (rules.length) {
         const style = document.createElement('style');
         style.textContent = rules.join('\n');
@@ -153,10 +187,17 @@
         return { segments: merged, highlight, count: segments.length };
     }
 
+    async function hashPrefix(id) {
+        const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id)));
+        return Array.from(hash.slice(0, 2), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
     function start() {
         const theaterMode = config.theaterMode && location.hostname !== 'm.youtube.com' && !/^\/(?:embed|v)\//.test(location.pathname);
         const skipSponsors = config.skipSponsors && config.sponsorCategories.length > 0;
-        if (!theaterMode && !skipSponsors && !textSelector && !config.blockShorts) return;
+        const quality = config.preferredQuality > 0;
+        const trackVideo = theaterMode || skipSponsors || quality;
+        if (!trackVideo && !textSelector && !config.blockShorts && !filterCards && !brandCards) return;
         if (textSelector) document.querySelectorAll(textSelector).forEach(cleanText);
 
         const playerSelector = '#movie_player video, #shorts-player video, video.html5-main-video';
@@ -169,6 +210,7 @@
         let previousTime = -1;
         let theaterVideoId = '';
         let theaterTimer = null;
+        let qualityVideoId = '';
         let highlightNotified = false;
         let notice = null;
         let noticeData = null;
@@ -238,6 +280,153 @@
             }, 600);
         }
 
+        const qualityHeights = { highres: 4320, hd2160: 2160, hd1440: 1440, hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144 };
+        function applyQuality() {
+            if (!quality || qualityVideoId === videoId) return;
+            const root = document.querySelector('#movie_player');
+            // player methods are page objects, firefox content scripts only see them through wrappedJSObject
+            const api = root?.wrappedJSObject || root;
+            if (!api?.setPlaybackQualityRange || root.classList.contains('ad-showing') || api.getVideoData?.()?.video_id !== videoId) return;
+            const levels = (api.getAvailableQualityLevels?.() || []).filter(level => qualityHeights[level]);
+            if (!levels.length) return;
+            // once per video so a manual quality change isnt reverted
+            qualityVideoId = videoId;
+            const sorted = levels.sort((a, b) => qualityHeights[b] - qualityHeights[a]);
+            const choice = sorted.find(level => qualityHeights[level] <= config.preferredQuality) || sorted[sorted.length - 1];
+            if (api.getPlaybackQuality?.() !== choice) api.setPlaybackQualityRange(choice, choice);
+        }
+
+        // inner cards hold the data, rich items are the grid cells that must be hidden
+        const cardSelector = 'ytd-video-renderer, ytd-rich-grid-media, ytd-grid-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model';
+        const cards = new WeakMap();
+        const brandings = new Map();
+        const brandingQueue = [];
+        let brandingRequests = 0;
+        let dirtyCards = new Set();
+
+        function brandingRequest(path) {
+            return new Promise(resolve => {
+                const finish = text => {
+                    brandingRequests--;
+                    brandingQueue.shift()?.();
+                    try {
+                        resolve(text ? JSON.parse(text) : null);
+                    } catch {
+                        resolve(null);
+                    }
+                };
+                const run = () => {
+                    brandingRequests++;
+                    try {
+                        GM.xmlHttpRequest({
+                            method: 'GET', url: 'https://' + config.sponsorServer + path, timeout: 10000, headers: { Accept: 'application/json' },
+                            onload: response => finish(response.status === 200 ? response.responseText : ''),
+                            onerror: () => finish(''), ontimeout: () => finish(''), onabort: () => finish('')
+                        })?.catch?.(() => { });
+                    } catch {
+                        finish('');
+                    }
+                };
+                // feeds can add dozens of cards at once
+                if (brandingRequests < 4) run();
+                else brandingQueue.push(run);
+            });
+        }
+
+        function loadBranding(id) {
+            let task = brandings.get(id);
+            if (!task) {
+                task = config.sponsorHashing
+                    ? hashPrefix(id).then(prefix => brandingRequest('/api/branding/' + prefix)).then(result => result?.[id] || null)
+                    : brandingRequest('/api/branding?videoID=' + id);
+                brandings.set(id, task);
+                if (brandings.size > 500) brandings.delete(brandings.keys().next().value);
+            }
+            return task;
+        }
+
+        function cardId(card) {
+            return card.querySelector('a[href*="/watch?v="]')?.href.match(/[?&]v=([\w-]{11})/)?.[1] || '';
+        }
+
+        function titleNode(card) {
+            const title = card.querySelector('#video-title, .ytLockupMetadataViewModelTitle');
+            if (!title) return null;
+            const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) if (walker.currentNode.data.trim()) return walker.currentNode;
+            return null;
+        }
+
+        function applyBranding(card, id, branding) {
+            const state = cards.get(card);
+            // yt can recycle a card by changing only its link, so check the dom instead of the cached id
+            if (!branding || state?.id !== id || !card.isConnected || cardId(card) !== id) return;
+            const title = branding.titles?.[0];
+            // the top submission is the original when the community kept the real title
+            if (config.replaceClickbait && title && !title.original && (title.locked || title.votes >= 0) && title.title) {
+                const text = title.title.replace(/(^|\s)>(\S)/g, '$1$2');
+                const node = titleNode(card);
+                state.applied = text;
+                // edit yt's own text node so its later updates still replace the title
+                if (node && node.data !== text) node.data = text;
+            }
+            const thumbnail = branding.thumbnails?.[0];
+            const replaceThumbnail = config.replaceClickbaitThumbnails && thumbnail && !thumbnail.original && (thumbnail.locked || thumbnail.votes >= 0) && Number.isFinite(thumbnail.timestamp);
+            const img = replaceThumbnail && card.querySelector('ytd-thumbnail img, yt-thumbnail-view-model img');
+            if (!img) {
+                if (replaceThumbnail) state.done = false;
+                return;
+            }
+            const url = 'https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=' + id + '&time=' + thumbnail.timestamp;
+            const swap = () => {
+                if (cardId(card) !== id || img.getAttribute('src') === url) return;
+                img.removeAttribute('srcset');
+                img.src = url;
+            };
+            // the service answers 204 until a thumbnail was generated, keep the original then
+            const test = new Image();
+            // yt only sets src once the card is visible and would overwrite an earlier swap
+            test.onload = () => img.getAttribute('src') ? swap() : img.addEventListener('load', swap, { once: true });
+            test.src = url;
+        }
+
+        function processCard(card) {
+            const id = cardId(card);
+            if (!id) return;
+            const text = titleNode(card)?.data.trim() || '';
+            let state = cards.get(card);
+            const changed = state?.id !== id;
+            if (changed) cards.set(card, state = { id, original: text, applied: '', done: false });
+            else if (text && text !== state.applied && text !== state.original) {
+                state.original = text;
+                state.applied = '';
+                state.done = false;
+            } else if (state.applied && text === state.original) state.done = false;
+            else if (!filterCards) return;
+            let hidden = false;
+            if (filterCards) {
+                const channel = card.querySelector('ytd-channel-name a, #channel-name a, .ytContentMetadataViewModelMetadataRow:first-child .ytContentMetadataViewModelMetadataText');
+                const handle = card.querySelector('a[href^="/@"]')?.getAttribute('href').slice(1).split('/')[0];
+                const duration = card.querySelector('ytd-thumbnail-overlay-time-status-renderer #text, yt-thumbnail-badge-view-model .ytBadgeShapeText')?.textContent.trim().match(/^(?:(\d+):)?(\d{1,2}):(\d{2})$/);
+                hidden = titlePatterns.some(pattern => pattern.test(state.original)) ||
+                    !!channel && blockedChannels.has(channel.textContent.trim().toLowerCase()) ||
+                    !!handle && blockedChannels.has(decodeURIComponent(handle).toLowerCase()) ||
+                    !!duration && (duration[1] || 0) * 3600 + duration[2] * 60 + +duration[3] < config.filterMinDuration;
+                (card.closest('ytd-rich-item-renderer') || card).toggleAttribute('data-userscript-hidden', hidden);
+            }
+            // once per video and title
+            if (brandCards && !hidden && !state.done) {
+                state.done = true;
+                void loadBranding(id).then(branding => applyBranding(card, id, branding));
+            }
+        }
+
+        function flushCards() {
+            const pending = dirtyCards;
+            dirtyCards = new Set();
+            pending.forEach(processCard);
+        }
+
         function playback(event) {
             if (!player || player.paused || player.ended) return;
             const time = player.currentTime;
@@ -284,9 +473,7 @@
                     let path;
                     if (!config.sponsorHashing) path = '/api/skipSegments?videoID=' + id + '&categories=' + categories;
                     else {
-                        const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id)));
-                        const prefix = Array.from(hash.slice(0, 2), byte => byte.toString(16).padStart(2, '0')).join('');
-                        path = '/api/skipSegments/' + prefix + '?categories=' + categories;
+                        path = '/api/skipSegments/' + await hashPrefix(id) + '?categories=' + categories;
                     }
                     if (revision !== generation) return;
                     const response = await new Promise((resolve, reject) => {
@@ -346,7 +533,7 @@
 
         function navigate() {
             if (blockShortsRoute()) { stopPlayback(); return; }
-            const nextId = theaterMode || skipSponsors ? getVideoId() : '';
+            const nextId = trackVideo ? getVideoId() : '';
             if (nextId !== videoId) {
                 stopPlayback();
                 videoId = nextId;
@@ -355,9 +542,11 @@
             if (videoId) {
                 if (skipSponsors) bindPlayer(document.querySelector(playerSelector));
                 scheduleTheater();
+                applyQuality();
             }
         }
 
+        const cardWork = filterCards || brandCards;
         new MutationObserver(mutations => {
             let updateTheater = false;
             let nextPlayer = null;
@@ -365,8 +554,16 @@
                 const textParent = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement;
                 const textElement = textSelector && textParent?.closest(textSelector);
                 if (textElement) cleanText(textElement);
+                if (cardWork) {
+                    const card = textParent?.closest(cardSelector);
+                    if (card) dirtyCards.add(card);
+                }
                 for (const node of mutation.addedNodes) {
                     if (node.nodeType !== 1) continue;
+                    if (cardWork) {
+                        if (node.matches(cardSelector)) dirtyCards.add(node);
+                        if (node.firstElementChild) for (const card of node.querySelectorAll(cardSelector)) dirtyCards.add(card);
+                    }
                     if (textSelector) {
                         if (node.matches(textSelector)) cleanText(node);
                         if (node.firstElementChild) node.querySelectorAll(textSelector).forEach(cleanText);
@@ -382,11 +579,16 @@
             if (player && !player.isConnected) bindPlayer(null);
             if (nextPlayer) bindPlayer(nextPlayer);
             if (updateTheater) scheduleTheater();
-        }).observe(document.documentElement, { childList: true, subtree: true, characterData: !!textSelector });
+            if (dirtyCards.size) flushCards();
+        }).observe(document.documentElement, { childList: true, subtree: true, characterData: !!textSelector || cardWork });
+        if (cardWork) {
+            document.querySelectorAll(cardSelector).forEach(card => dirtyCards.add(card));
+            flushCards();
+        }
 
         window.addEventListener('yt-navigate-start', stopPlayback);
         for (const type of ['yt-navigate-finish', 'popstate', 'pageshow']) window.addEventListener(type, navigate);
-        if (theaterMode || skipSponsors) document.addEventListener('loadedmetadata', event => {
+        if (trackVideo) document.addEventListener('loadedmetadata', event => {
             if (event.target.matches?.(playerSelector)) navigate();
         }, true);
         navigate();

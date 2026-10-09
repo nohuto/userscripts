@@ -44,9 +44,18 @@
         hideGoals: true, // bool (channel goals heading & cards)
         hideChannelPanels: true, // bool (custom panels below about box)
         hideLeaderboard: true, // bool (entire bar above chat)
+        preferredQuality: '1080p60', // string (twitch quality group like 1080p60/720p60, source is stored by its resolution, '' = twitch default)
+        theaterMode: true, // bool
+        sevenTVEmotes: true, // bool (7tv global & channel emotes in chat)
+        compactChat: true, // bool
         blockAds: true, // bool
         keepTabActive: true // bool (keep playback active in background tabs)
     };
+
+    // player reads this on mount
+    if (config.preferredQuality && /^(www|player)\.twitch\.tv$/.test(location.hostname)) try {
+        localStorage.setItem('video-quality', JSON.stringify({ default: config.preferredQuality }));
+    } catch { }
 
     config.blockAds && function () {
         const nativeHiddenGetter = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden')?.get;
@@ -1545,7 +1554,81 @@
     const cleanedVideos = new WeakSet;
     const clickedGates = new WeakSet;
     const gateSelector = '[data-a-target="content-classification-gate-overlay-start-watching-button"], [data-a-target="player-overlay-content-gate"]';
-    const addedSelector = [config.removeCarousel ? 'video, source' : '', config.keepTabActive ? gateSelector : ''].filter(Boolean).join(', ');
+    const fragmentSelector = '.chat-line__message .text-fragment';
+    const addedSelector = [config.removeCarousel ? 'video, source' : '', config.keepTabActive ? gateSelector : '', config.sevenTVEmotes ? fragmentSelector : ''].filter(Boolean).join(', ');
+    const emoteSets = new Map;
+    const doneFragments = new WeakSet;
+    let globalEmotes = null;
+    let emoteLogin = '';
+    let emotes = null;
+    let theaterRoute = '';
+    let loadedRoute = '';
+    const players = document.getElementsByClassName('persistent-player');
+    function fetchJson(url, init) {
+        return fetch(url, init).then(response => response.ok ? response.json() : null).catch(() => null);
+    }
+    function toEmoteMap(list) {
+        const map = new Map;
+        for (const emote of list || []) {
+            const host = emote.data?.host;
+            const file = host?.files?.find(file => file.name === '1x.webp');
+            file && map.set(emote.name, { url: 'https:' + host.url + '/1x.webp', width: file.width, height: file.height });
+        }
+        return map;
+    }
+    function loadEmotes(login) {
+        emoteLogin = login;
+        emotes = null;
+        if (!emoteSets.has(login)) {
+            globalEmotes ||= fetchJson('https://7tv.io/v3/emote-sets/global').then(set => toEmoteMap(set?.emotes));
+            const channel = fetchJson('https://gql.twitch.tv/gql', {
+                method: 'POST',
+                headers: { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko' },
+                body: JSON.stringify({ query: 'query($login: String!) { user(login: $login) { id } }', variables: { login } })
+            }).then(result => result?.data?.user?.id ? fetchJson('https://7tv.io/v3/users/twitch/' + result.data.user.id) : null);
+            emoteSets.set(login, Promise.all([globalEmotes, channel]).then(([global, user]) => new Map([...global, ...toEmoteMap(user?.emote_set?.emotes)])));
+        }
+        emoteSets.get(login).then(map => {
+            if (emoteLogin !== login || emotes) return;
+            emotes = map;
+            map.size && document.querySelectorAll('.chat-scrollable-area__message-container ' + fragmentSelector).forEach(addEmotes);
+        });
+    }
+    function addEmotes(fragment) {
+        if (doneFragments.has(fragment)) return;
+        const login = location.pathname.match(/^\/(?:popout\/|embed\/|moderator\/)?([a-z0-9_]{2,25})(?:\/|$)/i)?.[1].toLowerCase();
+        if (!login) return;
+        login !== emoteLogin && loadEmotes(login);
+        if (!emotes) return;
+        doneFragments.add(fragment);
+        const parts = fragment.textContent.split(/(\s+)/);
+        if (!parts.some(part => emotes.has(part))) return;
+        fragment.replaceChildren(...parts.map(part => {
+            const emote = emotes.get(part);
+            if (!emote) return part;
+            const img = document.createElement('img');
+            img.className = 'nh-emote';
+            img.src = emote.url;
+            img.alt = img.title = part;
+            img.width = emote.width;
+            img.height = emote.height;
+            img.loading = 'lazy';
+            return img;
+        }));
+    }
+    function applyTheater() {
+        const path = location.pathname;
+        if (!/^\/[a-z0-9_]{2,25}\/?$/i.test(path) || /^\/(directory|search|settings|downloads|subscriptions|inventory|wallet|drops|turbo|prime|store|jobs|friends|messages|login|signup)\/?$/i.test(path)) return void (theaterRoute = path);
+        // player ignores the toggle until the stream has data and leaves theatre on channel switches
+        if (loadedRoute !== path) return;
+        const player = players[0];
+        const state = player?.getAttribute('data-a-player-state');
+        if (state === 'theatre') return void (theaterRoute = path);
+        const button = state === '' && player.querySelector('button[aria-label*="alt+t" i]');
+        if (!button) return;
+        theaterRoute = path;
+        button.click();
+    }
     function cleanVideo(video) {
         if (!config.removeCarousel) return;
         if (video.tagName === 'SOURCE') {
@@ -1577,9 +1660,9 @@
         if (element.nodeType !== 1) return;
         (element.tagName === 'VIDEO' || element.tagName === 'SOURCE') && cleanVideo(element);
         (element.tagName === 'BUTTON' || element.hasAttribute('data-a-target')) && dismissGate(element);
-        if (!element.firstElementChild) return;
+        if (!element.firstElementChild || !addedSelector) return;
         element.querySelectorAll(addedSelector).forEach(child => {
-            child.tagName === 'VIDEO' || child.tagName === 'SOURCE' ? cleanVideo(child) : dismissGate(child);
+            child.tagName === 'VIDEO' || child.tagName === 'SOURCE' ? cleanVideo(child) : child.classList.contains('text-fragment') ? addEmotes(child) : dismissGate(child);
         });
     }
     function startUI() {
@@ -1612,14 +1695,18 @@
         // the unstyled chat child wraps the leaderboard and its navigation arrows
         hide(config.hideLeaderboard, '.chat-room__content > div:has([data-testid^="leaderboard-"], [class*="bitsLeaderboard"], button[aria-label="Next leaderboard set"], button[aria-label="Previous leaderboard set"]), [data-test-selector="channel-leaderboard-container"], .channel-leaderboard');
         hide(config.blockAds, '[data-test-selector="sda-wrapper"]');
+        if (config.sevenTVEmotes) rules.push('.nh-emote { vertical-align: middle; margin: -.5rem 0; }');
+        if (config.compactChat) rules.push('.chat-line__message { padding-top: .1rem !important; padding-bottom: .1rem !important; line-height: 1.4 !important; } .chat-line__message .chat-badge { margin: 0 .2rem 0 0 !important; }');
         if (rules.length) {
             const style = document.createElement('style');
             style.textContent = rules.join('\n');
             (document.head || document.documentElement).appendChild(style);
         }
-        if (!config.removeCarousel && !config.keepTabActive) return;
+        if (!config.removeCarousel && !config.keepTabActive && !config.theaterMode && !config.sevenTVEmotes) return;
         processAddedElement(document.documentElement);
         new MutationObserver(mutations => {
+            // player mounts after route changes, so retry until the route is handled
+            config.theaterMode && theaterRoute !== location.pathname && applyTheater();
             for (const mutation of mutations) if (mutation.type === 'attributes') if (mutation.attributeName === 'src' && (mutation.target.tagName === 'VIDEO' || mutation.target.tagName === 'SOURCE') && mutation.target.hasAttribute('src')) {
                 cleanedVideos.delete(mutation.target);
                 cleanVideo(mutation.target);
@@ -1631,6 +1718,10 @@
             attributeFilter: [...config.keepTabActive ? ['disabled'] : [], ...config.removeCarousel ? ['src'] : []]
         });
     }
+    config.theaterMode && document.addEventListener('loadeddata', () => {
+        loadedRoute = location.pathname;
+        theaterRoute !== loadedRoute && applyTheater();
+    }, true);
     if (document.documentElement) startUI(); else {
         const observer = new MutationObserver(() => {
             if (document.documentElement) {
