@@ -18,7 +18,7 @@ https://raw.githubusercontent.com/nohuto/userscripts/refs/heads/main/twitch.js
 - Hide `Whispers`, `Notifications`, `Subscribe`, `Gift a Sub`, `Share`, Drops & gifted sub highlights, Hype Train
 - Hide channel goals, custom panels & chat leaderboard
 - Preferred quality
-- Automatic theater mode
+- Automatic theatre mode
 - 7TV emotes in chat
 - Compact chat
 

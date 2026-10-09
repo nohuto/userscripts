@@ -45,7 +45,7 @@
         hideChannelPanels: true, // bool (custom panels below about box)
         hideLeaderboard: true, // bool (entire bar above chat)
         preferredQuality: '1080p60', // string (twitch quality group like 1080p60/720p60, source is stored by its resolution, '' = twitch default)
-        theaterMode: true, // bool
+        theaterMode: false, // bool
         sevenTVEmotes: true, // bool (7tv global & channel emotes in chat)
         compactChat: true, // bool
         blockAds: true, // bool

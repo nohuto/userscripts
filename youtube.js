@@ -27,7 +27,7 @@
     //
     const config = {
         theaterMode: true, // bool (desktop watch pages)
-        preferredQuality: 1080, // number (video height, e.g. 2160, 1440, 1080, 720, uses the next lower available level, 0 = youtube default)
+        preferredQuality: 2160, // number (video height, e.g. 2160, 1440, 1080, 720, uses the next lower available level, 0 = youtube default)
         skipSponsors: true, // bool
         sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (category ids to skip/highlight, [] = none)
         sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
