@@ -265,8 +265,6 @@ Celebration and confetti effects over the player/chat.
 
 ![](assets/twitch/chat.png?raw=true)
 
-![](assets/twitch/hidePowerUpsAndRewards.png?raw=true)
-
 When several highlights are shown above chat (drops, gifted subs, hype train, polls, predictions, pinned messages), Twitch stacks them into one card that is shown, which is only hidden when every highlight in it is hidden.
 
 #### hidePowerUpsAndRewards
