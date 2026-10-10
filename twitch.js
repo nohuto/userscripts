@@ -12,15 +12,6 @@
 // @grant        none
 // ==/UserScript==
 
-//
-// credits
-//
-// Twitch UI Cleaner (salaminha)
-// Carousel Removal (liquidjesus)
-// Twitch - Keep Tab Active (vikindor)
-// TwitchAdSolutions (ryanbr)
-// VideoAdBlockForTwitch (cleanlock & contributors)
-
 (function () {
     'use strict';
 
@@ -28,29 +19,98 @@
     // Settings
     //
     const config = {
-        hideStories: true, // bool
-        hideRecommendedCategories: true, // bool (hides suggested games, keeps channels)
-        removeCarousel: true, // bool
-        hidePromoButtons: true, // bool (bits & prime promotions)
-        hideExtensionBanner: true, // bool
-        hideWhispers: true, // bool
-        hideNotifications: true, // bool
-        hideShareButton: true, // bool (channel share button)
-        hideDropsHighlights: true, // bool (drops reward cards above chat)
-        hideGiftedSubHighlights: true, // bool (gifted sub cards above chat)
-        hideHypeTrain: true, // bool
-        hideSubscribe: true, // bool
-        hideGiftSub: true, // bool
-        hideGoals: true, // bool (channel goals heading & cards)
-        hideChannelPanels: true, // bool (custom panels below about box)
-        hideLeaderboard: true, // bool (entire bar above chat)
-        preferredQuality: '1080p60', // string (twitch quality group like 1080p60/720p60, source is stored by its resolution, '' = twitch default)
-        theaterMode: false, // bool
-        sevenTVEmotes: true, // bool (7tv global & channel emotes in chat)
-        compactChat: true, // bool
+        //
+        // Ad blocking, video ads in the player & display ads
+        //
         blockAds: true, // bool
-        keepTabActive: true // bool (keep playback active in background tabs)
+
+        //
+        // Background playback, keeps playback active in background tabs
+        //
+        keepTabActive: true, // bool
+
+        //
+        // Preferred quality
+        //
+        preferredQuality: '1080p60', // string (quality group: 1080p60, 720p60, 720p30, 480p30, 360p30, 160p30, source is stored by its resolution, '' = twitch default)
+
+        //
+        // Theatre mode on channel pages
+        //
+        theatreMode: false, // bool
+
+        //
+        // Top nav
+        //
+        topNav: true, // bool
+            hidePromoButtons: true, // bool (get bits buttons in the top nav & channel header, prime promotions)
+            hideWhispers: true, // bool
+            hideNotifications: true, // bool
+
+        //
+        // Side nav
+        //
+        sideNav: true, // bool
+            hideStories: true, // bool
+            hideRecommendedCategories: true, // bool (hides suggested games, keeps channels)
+
+        //
+        // Front page carousel, also stops its video & audio
+        //
+        removeCarousel: true, // bool
+
+        //
+        // Promoted event cards in directories & promoted channels in the side nav
+        //
+        hidePromoted: true, // bool
+
+        //
+        // Channel page
+        //
+        channelPage: true, // bool
+            hideShareButton: true, // bool
+            hideSubscribe: true, // bool
+            hideGiftSub: true, // bool
+            hideGoals: true, // bool (channel goals heading & cards)
+            hideChannelPanels: true, // bool (custom panels below about box)
+            hideExtensionBanner: true, // bool
+            hideChannelSkins: true, // bool (sponsored banners, ribbons & player overlays)
+            hideCelebrations: true, // bool (celebration & confetti effects over player and chat)
+
+        //
+        // Chat
+        //
+        chat: true, // bool
+            hideLeaderboard: true, // bool (entire bar above chat)
+            hideDropsHighlights: true, // bool (drops reward cards above chat)
+            hideGiftedSubHighlights: true, // bool (gifted sub cards above chat)
+            hideHypeTrain: true, // bool
+            hidePolls: true, // bool (poll cards above chat)
+            hidePredictions: true, // bool (prediction cards above chat)
+            hidePinnedMessages: true, // bool (pinned message cards above chat)
+            hidePowerUpsAndRewards: true, // bool (bits & channel points button below chat that opens power-ups & rewards, cheer button in the chat input)
+            hideWatchStreaks: true, // bool (save your streak sidebar row, streak rewards & indicators)
+            hideUserNotices: ['sub', 'resub', 'subgift', 'submysterygift', 'viewermilestone'], // string[] (twitch msg-ids: sub, resub, subgift, submysterygift, raid, viewermilestone, user written messages stay visible, [] = none)
+
+        //
+        // 7TV emotes in chat, global & channel emotes
+        //
+        sevenTVEmotes: true, // bool
+
+        //
+        // Compact chat, less padding between messages
+        //
+        compactChat: true // bool
     };
+
+    // main setting disables its whole group
+    const groups = {
+        topNav: ['hidePromoButtons', 'hideWhispers', 'hideNotifications'],
+        sideNav: ['hideStories', 'hideRecommendedCategories'],
+        channelPage: ['hideShareButton', 'hideSubscribe', 'hideGiftSub', 'hideGoals', 'hideChannelPanels', 'hideExtensionBanner', 'hideChannelSkins', 'hideCelebrations'],
+        chat: ['hideLeaderboard', 'hideDropsHighlights', 'hideGiftedSubHighlights', 'hideHypeTrain', 'hidePolls', 'hidePredictions', 'hidePinnedMessages', 'hidePowerUpsAndRewards', 'hideWatchStreaks', 'hideUserNotices']
+    };
+    for (const [main, subs] of Object.entries(groups)) if (!config[main]) for (const sub of subs) config[sub] = Array.isArray(config[sub]) ? [] : false;
 
     // player reads this on mount
     if (config.preferredQuality && /^(www|player)\.twitch\.tv$/.test(location.hostname)) try {
@@ -1555,7 +1615,10 @@
     const clickedGates = new WeakSet;
     const gateSelector = '[data-a-target="content-classification-gate-overlay-start-watching-button"], [data-a-target="player-overlay-content-gate"]';
     const fragmentSelector = '.chat-line__message .text-fragment';
-    const addedSelector = [config.removeCarousel ? 'video, source' : '', config.keepTabActive ? gateSelector : '', config.sevenTVEmotes ? fragmentSelector : ''].filter(Boolean).join(', ');
+    const noticeSelector = '[data-test-selector="user-notice-line"]';
+    const noticeTypes = new Set(config.hideUserNotices);
+    const highlightSelector = [config.hideDropsHighlights ? '[class*="dropsHighlight"]' : '', config.hideGiftedSubHighlights ? '.gift-highlight-gradient-container' : '', config.hideHypeTrain ? '[class*="hypeTrainBanner"]' : '', config.hidePolls ? '[data-test-selector^="choice-progress__fill--"], .top-poll-community-points-contributor' : '', config.hidePredictions ? '[data-test-selector^="community-prediction-highlight-"], [data-test-selector^="prediction-highlight-scroll-text-"], .community-prediction-highlight-body__icon' : '', config.hidePinnedMessages ? '.pinned-chat__highlight-card' : ''].filter(Boolean).join(', ');
+    const addedSelector = [config.removeCarousel ? 'video, source' : '', config.keepTabActive ? gateSelector : '', config.sevenTVEmotes ? fragmentSelector : '', noticeTypes.size ? noticeSelector : '', highlightSelector ? '.community-highlight' : ''].filter(Boolean).join(', ');
     const emoteSets = new Map;
     const doneFragments = new WeakSet;
     let globalEmotes = null;
@@ -1616,6 +1679,26 @@
             return img;
         }));
     }
+    function noticeType(message) {
+        // prop shapes first, twitch renumbers its message type enum, names follow twitchs irc msg-id
+        if ('watchStreak' in message) return 'viewermilestone';
+        if ('massGiftCount' in message) return 'submysterygift';
+        if ('recipientLogin' in message) return 'subgift';
+        if ('cumulativeMonths' in message) return 'resub';
+        if ('methods' in message) return 'sub';
+        return message.type === 26 ? 'raid' : '';
+    }
+    function hideNotice(notice) {
+        const key = Object.keys(notice).find(key => key.startsWith('__reactFiber$'));
+        for (let fiber = key && notice[key], depth = 0; fiber && depth < 20; fiber = fiber.return, depth++) {
+            const message = fiber.memoizedProps?.message;
+            if (typeof message?.type !== 'number') continue;
+            if (!noticeTypes.has(noticeType(message))) return;
+            const target = notice.querySelector('.chat-line__message') ? notice.firstElementChild : notice.closest('.chat-scrollable-area__message-container > *');
+            target?.setAttribute('data-nh-hidden', '');
+            return;
+        }
+    }
     function applyTheater() {
         const path = location.pathname;
         if (!/^\/[a-z0-9_]{2,25}\/?$/i.test(path) || /^\/(directory|search|settings|downloads|subscriptions|inventory|wallet|drops|turbo|prime|store|jobs|friends|messages|login|signup)\/?$/i.test(path)) return void (theaterRoute = path);
@@ -1656,13 +1739,19 @@
             button.click();
         }
     }
+    function markHighlight(highlight) {
+        highlight.toggleAttribute('data-nh-highlight', !!highlight.querySelector(highlightSelector));
+    }
     function processAddedElement(element) {
         if (element.nodeType !== 1) return;
+        // highlight contents can render after their wrapper
+        const highlight = highlightSelector && element.closest('.community-highlight');
+        highlight && markHighlight(highlight);
         (element.tagName === 'VIDEO' || element.tagName === 'SOURCE') && cleanVideo(element);
         (element.tagName === 'BUTTON' || element.hasAttribute('data-a-target')) && dismissGate(element);
         if (!element.firstElementChild || !addedSelector) return;
         element.querySelectorAll(addedSelector).forEach(child => {
-            child.tagName === 'VIDEO' || child.tagName === 'SOURCE' ? cleanVideo(child) : child.classList.contains('text-fragment') ? addEmotes(child) : dismissGate(child);
+            child.tagName === 'VIDEO' || child.tagName === 'SOURCE' ? cleanVideo(child) : child.classList.contains('text-fragment') ? addEmotes(child) : child.classList.contains('community-highlight') ? markHighlight(child) : child.matches(noticeSelector) ? hideNotice(child) : dismissGate(child);
         });
     }
     function startUI() {
@@ -1672,29 +1761,34 @@
             if (enabled) rules.push(selectors + ' { display: none !important; }');
         }
         // expanded and collapsed story controls have different wrappers with their own margins
-        hide(config.hideStories, '[class*="storiesLeftNavSection"], [data-a-target="side-nav-stories"], #side-nav div:has(> button [aria-label="Open stories"], > button [aria-label$="channels with unread Stories" i]), #side-nav div:has(> div > button > [class*="storiesLeftNavSectionCollapsedButton"])');
+        hide(config.hideStories, '[class*="storiesLeftNavSection"], [data-a-target="side-nav-stories"], #side-nav div:has(> button):has(> button [aria-label="Open stories"], > button [aria-label$="channels with unread Stories" i]), #side-nav div:has(> div > button > [class*="storiesLeftNavSectionCollapsedButton"])');
         hide(config.hideRecommendedCategories, '.side-nav-section:has(a[href^="/directory/category/"]), .side-nav-section:has(a[href^="/directory/game/"]), [data-a-target="side-nav-games-list"], [data-a-target="side-nav-recommended-games"]');
-        hide(config.removeCarousel, '[class*="carousel"]:has(video)');
-        hide(config.hidePromoButtons, 'div:has(> div > button[data-a-target="top-nav-get-bits-button"]), .top-nav__prime, [data-a-target="prime-offers-icon"], .prime-offers__pill, button:has(path[d^="m13 8-5.349"])');
+        hide(config.removeCarousel, '[class*="carousel"]:has(video), [data-a-target="front-page-carousel"]');
+        hide(config.hidePromoButtons, '.top-nav div:has(> div > button[data-a-target="top-nav-get-bits-button"]), div:is([data-target="channel-header-right"] > *):has(button[data-a-target="top-nav-get-bits-button"]), button[data-a-target="top-nav-get-bits-button"], .top-nav__prime, [data-a-target="prime-offers-icon"], .prime-offers__pill, button:has(path[d^="m13 8-5.349"])');
         hide(config.hideExtensionBanner, '[data-test-selector="extension-disclaimer"]');
         hide(config.hideWhispers, '[data-a-target="whisper-box-button"], [data-a-target="whispers-button"], .top-nav [aria-label="Whispers"], .top-nav [aria-label="Flüstern"]');
         const notifications = '[data-a-target="notifications-button"], [data-a-target="activity-feed-button"], .top-nav :is(button, [role="button"]):is([aria-label*="Notifications" i], [aria-label*="Benachrichtigungen" i], [title="Notifications"], [title="Benachrichtigungen"])';
         hide(config.hideNotifications, notifications + ', .top-nav div:has(> :is(' + notifications + '):only-child)');
         hide(config.hideShareButton, '[data-a-target="share-button"], div:has(> button[data-a-target="share-button"]:only-child)');
-        hide(config.hideDropsHighlights, '.community-highlight-stack__card:has([class*="dropsHighlight"]), [class*="dropsHighlight"]');
-        hide(config.hideGiftedSubHighlights, '.community-highlight-stack__card:has(.gift-highlight-gradient-container)');
-        hide(config.hideHypeTrain, '.sticky-community-highlight:has([class*="hypeTrainBanner"], [aria-controls="hype-train-expanded-view"], #hype-train-expanded-view), .community-highlight-stack__card:has([class*="hypeTrainBanner"], #hype-train-expanded-view), [class*="hypeTrainBanner"], #hype-train-expanded-view');
+        hide(config.hideHypeTrain, '.sticky-community-highlight:has([aria-controls="hype-train-expanded-view"], #hype-train-expanded-view), #hype-train-expanded-view');
         hide(config.hideSubscribe, '[data-a-target="subscribe-button"], [data-a-target="subscribe-button-dropdown"]');
         const giftWrapper = '[data-target="channel-header-right"] div:has(> div:only-child > div:only-child > button[data-a-target="gift-button"])';
         hide(config.hideGiftSub, '[data-a-target="gift-button"], [data-a-target="gift-sub-button"], ' + giftWrapper);
         if (config.hideSubscribe) rules.push(giftWrapper + ' { margin-right: 0 !important; }');
-        hide(config.hideSubscribe && config.hideGiftSub, '[data-target="channel-header-right"] > div:has([data-a-target="subscribe-button"]):has([data-a-target="gift-button"])');
+        hide(config.hideSubscribe && config.hideGiftSub, 'div:is([data-target="channel-header-right"] > *):has([data-a-target="subscribe-button"]):has([data-a-target="gift-button"])');
         // the outer goals wrapper keeps a bottom margin when only its content is hidden
-        hide(config.hideGoals, '.about-section__actions, .about-section > div:has(> .about-section__actions)');
+        hide(config.hideGoals, '.about-section__actions, div:is(.about-section > *):has(> .about-section__actions)');
         hide(config.hideChannelPanels, '.channel-panels');
         // the unstyled chat child wraps the leaderboard and its navigation arrows
-        hide(config.hideLeaderboard, '.chat-room__content > div:has([data-testid^="leaderboard-"], [class*="bitsLeaderboard"], button[aria-label="Next leaderboard set"], button[aria-label="Previous leaderboard set"]), [data-test-selector="channel-leaderboard-container"], .channel-leaderboard');
-        hide(config.blockAds, '[data-test-selector="sda-wrapper"]');
+        hide(config.hideLeaderboard, 'div:is(.chat-room__content > *):has([data-testid^="leaderboard-"], [class*="bitsLeaderboard"], button[aria-label="Next leaderboard set"], button[aria-label="Previous leaderboard set"]), [data-test-selector="channel-leaderboard-container"], .channel-leaderboard');
+        hide(highlightSelector, '.community-highlight-stack__card:has(.community-highlight[data-nh-highlight]):not(:has(.community-highlight:not([data-nh-highlight]))), .sticky-community-highlight:has(' + highlightSelector + ')');
+        hide(config.hidePowerUpsAndRewards, '.chat-input__buttons-container .community-points-summary, .chat-input__textarea div:has(> div > button[data-a-target="bits-button"])');
+        hide(noticeTypes.size, '.chat-scrollable-area__message-container [data-nh-hidden]');
+        hide(config.hidePromoted, 'div:is(.tw-tower > *):has(a[data-a-target="tw-box-art-card-link"][href^="/directory/event/"]), .side-nav .tw-transition:has(a[class*="side-nav-card__link--promoted"])');
+        hide(config.hideChannelSkins, 'html [data-test-selector^="channel-skins-"], div:has(> .channel-skins-banner__interactive, > .channel-skins-ribbon__container), html .channel-skins-overlay__background, html .channel-skins-overlay__interactive');
+        hide(config.hideWatchStreaks, '.side-nav div[role="group"]:has(a[class*="saveYourStreakSideNavRow"]), div:is(.rewards-list > *):has([class*="watchStreakMilestone"]), [class*="watchStreakFooter--"]');
+        hide(config.hideCelebrations, 'html .celebration__overlay, html .confetti-layer, html .confetti-curtain');
+        hide(config.blockAds, '[data-test-selector="sda-wrapper"], [data-a-target="browse-banner-ad-slot"], [data-a-target="directory-banner-ad-slot"]');
         if (config.sevenTVEmotes) rules.push('.nh-emote { vertical-align: middle; margin: -.5rem 0; }');
         if (config.compactChat) rules.push('.chat-line__message { padding-top: .1rem !important; padding-bottom: .1rem !important; line-height: 1.4 !important; } .chat-line__message .chat-badge { margin: 0 .2rem 0 0 !important; }');
         if (rules.length) {
@@ -1702,11 +1796,11 @@
             style.textContent = rules.join('\n');
             (document.head || document.documentElement).appendChild(style);
         }
-        if (!config.removeCarousel && !config.keepTabActive && !config.theaterMode && !config.sevenTVEmotes) return;
+        if (!config.removeCarousel && !config.keepTabActive && !config.theatreMode && !config.sevenTVEmotes && !noticeTypes.size && !highlightSelector) return;
         processAddedElement(document.documentElement);
         new MutationObserver(mutations => {
             // player mounts after route changes, so retry until the route is handled
-            config.theaterMode && theaterRoute !== location.pathname && applyTheater();
+            config.theatreMode && theaterRoute !== location.pathname && applyTheater();
             for (const mutation of mutations) if (mutation.type === 'attributes') if (mutation.attributeName === 'src' && (mutation.target.tagName === 'VIDEO' || mutation.target.tagName === 'SOURCE') && mutation.target.hasAttribute('src')) {
                 cleanedVideos.delete(mutation.target);
                 cleanVideo(mutation.target);
@@ -1718,7 +1812,7 @@
             attributeFilter: [...config.keepTabActive ? ['disabled'] : [], ...config.removeCarousel ? ['src'] : []]
         });
     }
-    config.theaterMode && document.addEventListener('loadeddata', () => {
+    config.theatreMode && document.addEventListener('loadeddata', () => {
         loadedRoute = location.pathname;
         theaterRoute !== loadedRoute && applyTheater();
     }, true);

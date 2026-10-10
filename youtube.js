@@ -13,12 +13,6 @@
 // @connect      *
 // ==/UserScript==
 
-//
-// credits
-//
-// YouTube - Always Theater Mode (r-a-y)
-// Simple Sponsor Skipper (mthsk)
-
 (function () {
     'use strict';
 
@@ -26,38 +20,110 @@
     // Settings
     //
     const config = {
-        theaterMode: true, // bool (desktop watch pages)
-        preferredQuality: 2160, // number (video height, e.g. 2160, 1440, 1080, 720, uses the next lower available level, 0 = youtube default)
-        skipSponsors: true, // bool
-        sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (category ids to skip/highlight, [] = none)
-        sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
-        sponsorNotifications: true, // bool (notices inside the player)
-        sponsorHashing: true, // bool (true sends a hash prefix, false sends the video id)
-        sponsorServer: 'sponsor.ajay.app', // string (api hostname without scheme/path)
-        hideThumbnails: false, // bool
-        hideVoiceSearch: true, // bool
-        hideCreateButton: true, // bool
-        hideNotifications: true, // bool
-        hideFilterChips: true, // bool (content filter bars)
-        hideJoin: true, // bool (membership buttons)
-        hideSuperThanks: true, // bool (thanks donation buttons)
-        hideComments: true, // bool
-        hideDescription: false, // bool (description box with views and upload date)
-        hideRelatedVideos: true, // bool (recommended videos beside/below the player)
-        hideMostRelevant: true, // bool (most relevant in subscriptions)
-        hideExplore: true, // bool (entire explore sidebar section)
-        hideMoreFromYouTube: true, // bool (entire more from youtube section)
-        hideReportHistory: false, // bool
-        hideSidebarFooter: true, // bool
+        //
+        // Theater mode
+        //
+        theaterMode: true, // bool
+
+        //
+        // Preferred video quality
+        //
+        preferredQuality: 2160, // number (video height: 4320, 2160, 1440, 1080, 720, 480, 360, 240, 144, uses the next lower available one, 0 = youtube default)
+
+        //
+        // SponsorBlock, skips community submitted segments
+        //
+        sponsorBlock: true, // bool
+            sponsorCategories: ['preview', 'sponsor', 'outro', 'music_offtopic', 'selfpromo', 'poi_highlight', 'interaction', 'intro'], // string[] (sponsor, selfpromo, interaction, intro, outro, preview, hook, filler, music_offtopic, poi_highlight, [] = none)
+            sponsorMinVotes: -2, // number (minimum segment votes, negatives allowed)
+            sponsorNotifications: true, // bool (notices inside the player)
+            sponsorHashing: true, // bool (true sends a hash prefix, false sends the video id, also used by deArrow)
+            sponsorServer: 'sponsor.ajay.app', // string (api hostname without scheme/path, also used by deArrow)
+
+        //
+        // DeArrow, community titles & thumbnails on video cards
+        //
+        deArrow: true, // bool
+            replaceTitles: true, // bool (titles)
+            replaceThumbnails: true, // bool (thumbnails)
+
+        //
+        // Video filters, hide video cards
+        //
+        filterVideos: true, // bool
+            hideMembersOnly: true, // bool (members only & members first videos, yt uses the same badge for both)
+            hideBuyOrRent: true, // bool (buy/rent movies & videos)
+            filterTitles: [], // string[] (case insensitive regex sources matched against titles, e.g. ['giveaway', 'reaction'])
+            filterChannels: [], // string[] (channel names or @handles, case insensitive)
+            filterMinDuration: 0, // number (seconds, hides shorter videos, 0 = off)
+
+        //
+        // Shorts, redirects shorts pages and hides shorts everywhere
+        //
         blockShorts: true, // bool
-        disableAnimations: false, // bool (page transitions & animations outside the player, cosmetic, adds ~50ms style work on feed loads)
-        disableHoverPreviews: true, // bool (hides and pauses inline previews, yt still starts loading them)
-        replaceClickbait: true, // bool
-        replaceClickbaitThumbnails: true, // bool (dearrow thumbnails)
-        filterTitles: [], // string[] (case insensitive regex sources matched against titles, e.g. ['giveaway', 'reaction'])
-        filterChannels: [], // string[] (channel names or @handles, case insensitive)
-        filterMinDuration: 0 // number (seconds, hides shorter videos, 0 = off)
+
+        //
+        // Masthead (top bar)
+        //
+        masthead: true, // bool
+            hideVoiceSearch: true, // bool
+            hideCreateButton: true, // bool
+            hideNotifications: true, // bool
+
+        //
+        // Guide (sidebar)
+        //
+        guide: true, // bool
+            hideExplore: true, // bool (entire explore section)
+            hideMoreFromYouTube: true, // bool (entire more from youtube section)
+            hideReportHistory: false, // bool
+            hideGuideFooter: true, // bool (about, press, copyright, terms & other links)
+
+        //
+        // Feeds & search
+        //
+        feeds: true, // bool
+            hideFilterChips: true, // bool (content filter bars)
+            hideSearchShelves: true, // bool (latest from, people also watched, for you & related search shelves in search results)
+            hideMostRelevant: true, // bool (most relevant in subscriptions)
+            hideThumbnails: false, // bool
+
+        //
+        // Watch page
+        //
+        watchPage: true, // bool
+            hideJoin: true, // bool (membership buttons)
+            hideSuperThanks: true, // bool (thanks donation buttons)
+            hideComments: true, // bool
+            hideDescription: false, // bool (description box with views and upload date)
+            hideRelatedVideos: true, // bool (recommended videos beside/below the player)
+
+        //
+        // Videos per row in video grids (~250px per video)
+        //
+        gridItemsPerRow: 6, // number (0 = youtube default)
+
+        //
+        // Inline playback
+        //
+        disableInlinePlayback: true, // bool
+
+        //
+        // Page transitions & animations outside the player (adds ~50ms style work on feed loads)
+        //
+        disableAnimations: false // bool
     };
+
+    // main setting disables its whole group
+    const groups = {
+        deArrow: ['replaceTitles', 'replaceThumbnails'],
+        filterVideos: ['hideMembersOnly', 'hideBuyOrRent', 'filterTitles', 'filterChannels', 'filterMinDuration'],
+        masthead: ['hideVoiceSearch', 'hideCreateButton', 'hideNotifications'],
+        guide: ['hideExplore', 'hideMoreFromYouTube', 'hideReportHistory', 'hideGuideFooter'],
+        feeds: ['hideFilterChips', 'hideSearchShelves', 'hideMostRelevant', 'hideThumbnails'],
+        watchPage: ['hideJoin', 'hideSuperThanks', 'hideComments', 'hideDescription', 'hideRelatedVideos']
+    };
+    for (const [main, subs] of Object.entries(groups)) if (!config[main]) for (const sub of subs) config[sub] = Array.isArray(config[sub]) ? [] : typeof config[sub] === 'number' ? 0 : false;
 
     function blockShortsRoute() {
         if (!config.blockShorts || !/\/shorts(?:\/|$)/.test(location.pathname)) return false;
@@ -72,20 +138,42 @@
         localStorage.setItem('yt-player-quality', JSON.stringify({ data: JSON.stringify({ quality: config.preferredQuality, previousQuality: config.preferredQuality }), expiration: now + 31104000000, creation: now }));
     } catch { }
 
+    // yts own inline playback setting (pref flag 186), previews then never load and thumbnails stay static
+    if (config.disableInlinePlayback) try {
+        const pref = document.cookie.match(/(?:^|;\s*)PREF=([^;]*)/)?.[1] || '';
+        const flags = parseInt(pref.match(/(?:^|&)f7=([\da-f]+)/i)?.[1] || '0', 16);
+        if (!(flags & 1)) {
+            const value = (flags | 1).toString(16);
+            const next = /(?:^|&)f7=/.test(pref) ? pref.replace(/((?:^|&)f7=)[^&]*/, '$1' + value) : (pref ? pref + '&' : '') + 'f7=' + value;
+            document.cookie = 'PREF=' + next + '; domain=.youtube.com; path=/; max-age=63072000; secure';
+        }
+    } catch { }
+
     const rules = [];
     function hide(enabled, selectors) {
         if (enabled) rules.push(selectors + ' { display: none !important; }');
     }
+    const each = (elements, suffix) => elements.map(element => element + suffix).join(', ');
     hide(config.hideThumbnails, 'ytd-thumbnail:not(.player-container-background-image), yt-thumbnail-view-model, yt-collection-thumbnail-view-model, .ytLockupViewModelContentImage, ytd-playlist-thumbnail, ytd-moving-thumbnail-renderer, ytd-video-preview, ytm-media-item .media-item-thumbnail-container, ytm-video-with-context-renderer .video-thumbnail-container-large, ytm-compact-video-renderer .video-thumbnail-container-compact');
     if (config.hideThumbnails) rules.push('.ytLockupViewModelMetadata { width: 100% !important; margin-left: 0 !important; }');
     hide(config.hideVoiceSearch, '#voice-search-button, ytm-masthead .voice-search-button');
     hide(config.hideCreateButton, 'yt-create-button-view-model, ytd-masthead ytd-button-renderer:has([aria-label="Create"]), ytd-masthead ytd-topbar-menu-button-renderer:has([aria-label="Create"]), ytd-masthead ytd-button-renderer:has([aria-label="Erstellen"]), ytd-masthead ytd-topbar-menu-button-renderer:has([aria-label="Erstellen"]), ytd-masthead a[href^="https://studio.youtube.com/channel/"][href$="/videos/upload"]');
-    hide(config.hideNotifications, 'ytd-notification-topbar-button-renderer, yt-notification-topbar-button-view-model, ytd-masthead :is(ytd-topbar-menu-button-renderer, button-view-model):has([aria-label^="Notifications"]), ytd-masthead :is(ytd-topbar-menu-button-renderer, button-view-model):has([aria-label^="Benachrichtigungen"])');
+    hide(config.hideNotifications, 'ytd-notification-topbar-button-renderer, yt-notification-topbar-button-view-model, ' + each(['ytd-masthead ytd-topbar-menu-button-renderer', 'ytd-masthead button-view-model'], ':has([aria-label^="Notifications"], [aria-label^="Benachrichtigungen"])'));
     hide(config.hideFilterChips, 'ytd-feed-filter-chip-bar-renderer, chip-bar-view-model, yt-chip-cloud-renderer, ytd-chip-cloud-renderer, yt-chip-cloud-view-model, ytm-chip-cloud-renderer, #chips-wrapper.ytd-watch-next-secondary-results-renderer');
     // the shared header background still reserves the chip bar height
     if (config.hideFilterChips) rules.push('ytd-app #frosted-glass { height: var(--ytd-masthead-height, 56px) !important; }');
-    hide(config.hideJoin, '#sponsor-button, #join-button, :is(ytd-button-renderer, button-view-model, yt-button-view-model, yt-button-shape, .ytFlexibleActionsViewModelAction):has(button:is([aria-label="Join"], [aria-label^="Join this channel"], [aria-label="Mitglied werden"], [aria-label="Beitreten"]))');
-    hide(config.hideSuperThanks, ':is(ytd-button-renderer, button-view-model, yt-button-view-model, yt-button-shape, .ytFlexibleActionsViewModelAction):has(button:is([aria-label="Thanks"], [aria-label*="Super Thanks"], [aria-label="Danke"], [aria-label*="Super-Dank"]))');
+    hide(config.hideSearchShelves, 'ytd-search ytd-item-section-renderer > #contents > ytd-shelf-renderer, ytd-search ytd-item-section-renderer > #contents > ytd-horizontal-card-list-renderer');
+    const lockups = ['ytd-rich-item-renderer', 'yt-lockup-view-model'];
+    const renderers = ['ytd-video-renderer', 'ytd-grid-video-renderer', 'ytd-compact-video-renderer', 'ytd-playlist-video-renderer', 'ytd-movie-renderer', 'ytd-grid-movie-renderer'];
+    hide(config.hideMembersOnly, each(lockups, ':has(.ytBadgeShapeCommerce)') + ', ' + each(renderers, ':has(.ytBadgeShapeMembership, .badge-style-type-members-only)'));
+    hide(config.hideBuyOrRent, each(renderers, ':has(.ytBadgeShapeCommerce, .badge-style-type-ypc)') + ', ytd-movie-renderer:has(#offer-buttons ytd-button-renderer)');
+    if (config.gridItemsPerRow > 0) {
+        rules.push('ytd-rich-grid-renderer > #contents { container-type: inline-size; }');
+        for (let items = 1; items <= config.gridItemsPerRow; items++) rules.push('@container (min-width: ' + items * 266 + 'px) { ytd-rich-grid-renderer > #contents > ytd-rich-item-renderer { --ytd-rich-grid-items-per-row: ' + items + ' !important; } }');
+    }
+    const buttons = ['ytd-button-renderer', 'button-view-model', 'yt-button-view-model', 'yt-button-shape', '.ytFlexibleActionsViewModelAction'];
+    hide(config.hideJoin, '#sponsor-button, #join-button, ' + each(buttons, ':has(button:is([aria-label="Join"], [aria-label^="Join this channel"], [aria-label="Mitglied werden"], [aria-label="Beitreten"]))'));
+    hide(config.hideSuperThanks, each(buttons, ':has(button:is([aria-label="Thanks"], [aria-label*="Super Thanks"], [aria-label="Danke"], [aria-label*="Super-Dank"]))'));
     hide(config.hideComments, 'ytd-comments, ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"], ytm-comment-section-renderer, ytm-comments-entry-point-header-renderer, ytm-item-section-renderer[section-identifier="comments-entry-point"]');
     hide(config.hideDescription, 'ytd-watch-metadata #description, ytd-video-secondary-info-renderer #description, ytm-watch .slim-video-metadata-info');
     if (config.hideRelatedVideos) {
@@ -97,19 +185,14 @@
     hide(config.hideExplore, 'ytd-guide-section-renderer:has(a[href="/feed/trending"]), ytd-guide-section-renderer:has(a[href="/gaming"]), ytd-guide-section-renderer:has(a[href="/feed/explore"])');
     hide(config.hideMoreFromYouTube, 'ytd-guide-section-renderer:has(a[href^="https://www.youtube.com/premium"]), ytd-guide-section-renderer:has(a[href="/premium"]), ytd-guide-section-renderer:has(a[href^="https://music.youtube.com"]), ytd-guide-section-renderer:has(a[href^="https://www.youtubekids.com"])');
     hide(config.hideReportHistory, 'ytd-guide-entry-renderer:has(a[href^="/reporthistory"]), ytd-guide-entry-renderer:has(a[href^="https://www.youtube.com/reporthistory"])');
-    hide(config.hideSidebarFooter, 'ytd-guide-renderer #footer, ytd-guide-renderer #guide-links-primary, ytd-guide-renderer #guide-links-secondary, ytd-guide-renderer #copyright');
+    hide(config.hideGuideFooter, 'ytd-guide-renderer #footer, ytd-guide-renderer #guide-links-primary, ytd-guide-renderer #guide-links-secondary, ytd-guide-renderer #copyright');
     const shortsLink = 'a:is([href^="/shorts/"], [href^="https://www.youtube.com/shorts/"], [href^="https://m.youtube.com/shorts/"])';
     // spa guide buttons can have a title without an href
-    hide(config.blockShorts, 'ytd-reel-shelf-renderer, ytd-reel-item-renderer, ytm-reel-shelf-renderer, ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, yt-shorts-lockup-view-model, :is(ytd-rich-section-renderer, ytd-rich-shelf-renderer, .ytGridShelfViewModelHost, ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-playlist-video-renderer, ytd-playlist-panel-video-renderer, yt-lockup-view-model, ytm-media-item, ytm-video-with-context-renderer, ytm-compact-video-renderer):has(' + shortsLink + '), :is(ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer):has(a:is([href^="/shorts"], [href$="/shorts"], [title="Shorts"], [aria-label="Shorts"])), .pivot-shorts, yt-tab-shape:has(a[href$="/shorts"])');
+    hide(config.blockShorts, 'ytd-reel-shelf-renderer, ytd-reel-item-renderer, ytm-reel-shelf-renderer, ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, yt-shorts-lockup-view-model, ' + each(['ytd-rich-section-renderer', 'ytd-rich-shelf-renderer', '.ytGridShelfViewModelHost', 'ytd-rich-item-renderer', 'ytd-video-renderer', 'ytd-grid-video-renderer', 'ytd-compact-video-renderer', 'ytd-playlist-video-renderer', 'ytd-playlist-panel-video-renderer', 'yt-lockup-view-model', 'ytm-media-item', 'ytm-video-with-context-renderer', 'ytm-compact-video-renderer'], ':has(' + shortsLink + ')') + ', ' + each(['ytd-guide-entry-renderer', 'ytd-mini-guide-entry-renderer'], ':has(a:is([href^="/shorts"], [href$="/shorts"], [title="Shorts"], [aria-label="Shorts"]))') + ', .pivot-shorts, yt-tab-shape:has(a[href$="/shorts"])');
     if (config.disableAnimations) {
         const motion = ['ytd-masthead', 'tp-yt-app-drawer', 'ytd-browse', 'ytd-search', 'ytd-watch-flexy #below', 'ytd-watch-flexy #secondary', 'ytd-popup-container'].map(root => root + ' *').join(', ');
         rules.push(motion + ' { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; scroll-behavior: auto !important; }');
     }
-    hide(config.disableHoverPreviews, '#video-preview');
-    if (config.disableHoverPreviews) document.addEventListener('play', event => {
-        // hidden previews keep playing and downloading their muted video
-        if (event.target.tagName === 'VIDEO' && event.target.closest('#video-preview')) event.target.pause();
-    }, true);
     const titlePatterns = config.filterTitles.flatMap(source => {
         try {
             return [new RegExp(source, 'i')];
@@ -120,8 +203,9 @@
     });
     const blockedChannels = new Set(config.filterChannels.map(name => name.trim().toLowerCase()));
     const filterCards = titlePatterns.length > 0 || blockedChannels.size > 0 || config.filterMinDuration > 0;
-    const brandCards = config.replaceClickbait || config.replaceClickbaitThumbnails;
+    const brandCards = config.replaceTitles || config.replaceThumbnails;
     hide(config.blockShorts || config.hideExplore || config.hideMoreFromYouTube || config.hideMostRelevant || filterCards, '[data-userscript-hidden]');
+    if (config.gridItemsPerRow > 0 || config.blockShorts || config.hideMembersOnly || config.hideBuyOrRent || filterCards) rules.push('ytd-rich-grid-renderer > #contents > ytd-rich-item-renderer[rendered-from-rich-grid] { margin-left: calc(var(--ytd-rich-grid-item-margin) / 2) !important; margin-right: calc(var(--ytd-rich-grid-item-margin) / 2) !important; }');
     if (rules.length) {
         const style = document.createElement('style');
         style.textContent = rules.join('\n');
@@ -194,7 +278,7 @@
 
     function start() {
         const theaterMode = config.theaterMode && location.hostname !== 'm.youtube.com' && !/^\/(?:embed|v)\//.test(location.pathname);
-        const skipSponsors = config.skipSponsors && config.sponsorCategories.length > 0;
+        const skipSponsors = config.sponsorBlock && config.sponsorCategories.length > 0;
         const quality = config.preferredQuality > 0;
         const trackVideo = theaterMode || skipSponsors || quality;
         if (!trackVideo && !textSelector && !config.blockShorts && !filterCards && !brandCards) return;
@@ -363,7 +447,7 @@
             if (!branding || state?.id !== id || !card.isConnected || cardId(card) !== id) return;
             const title = branding.titles?.[0];
             // the top submission is the original when the community kept the real title
-            if (config.replaceClickbait && title && !title.original && (title.locked || title.votes >= 0) && title.title) {
+            if (config.replaceTitles && title && !title.original && (title.locked || title.votes >= 0) && title.title) {
                 const text = title.title.replace(/(^|\s)>(\S)/g, '$1$2');
                 const node = titleNode(card);
                 state.applied = text;
@@ -371,7 +455,7 @@
                 if (node && node.data !== text) node.data = text;
             }
             const thumbnail = branding.thumbnails?.[0];
-            const replaceThumbnail = config.replaceClickbaitThumbnails && thumbnail && !thumbnail.original && (thumbnail.locked || thumbnail.votes >= 0) && Number.isFinite(thumbnail.timestamp);
+            const replaceThumbnail = config.replaceThumbnails && thumbnail && !thumbnail.original && (thumbnail.locked || thumbnail.votes >= 0) && Number.isFinite(thumbnail.timestamp);
             const img = replaceThumbnail && card.querySelector('ytd-thumbnail img, yt-thumbnail-view-model img');
             if (!img) {
                 if (replaceThumbnail) state.done = false;
