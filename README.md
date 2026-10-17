@@ -3,7 +3,7 @@
 Each feature can be changed via the `config` object, which has main & sub settings, whenever the main is disabled, all sub settings won't be used. You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (`New > New from file > Save & Close`, or raw URLs & `Install from URL`).
 
 <details>
-<summaryOverview:</summary>
+<summary>Overview:</summary>
 
 - [YouTube](#youtube)
   - [theaterMode](#theatermode)
