@@ -1768,7 +1768,8 @@
         hide(config.hideExtensionBanner, '[data-test-selector="extension-disclaimer"]');
         hide(config.hideWhispers, '[data-a-target="whisper-box-button"], [data-a-target="whispers-button"], .top-nav [aria-label="Whispers"], .top-nav [aria-label="Flüstern"]');
         const notifications = '[data-a-target="notifications-button"], [data-a-target="activity-feed-button"], .top-nav :is(button, [role="button"]):is([aria-label*="Notifications" i], [aria-label*="Benachrichtigungen" i], [title="Notifications"], [title="Benachrichtigungen"])';
-        hide(config.hideNotifications, notifications + ', .top-nav div:has(> :is(' + notifications + '):only-child)');
+        // the unseen count badge is a sibling of the button
+        hide(config.hideNotifications, notifications + ', .top-nav div:has(> :is(' + notifications + '):only-child), .top-nav [data-test-selector="onsite-notifications__badge"]');
         hide(config.hideShareButton, '[data-a-target="share-button"], div:has(> button[data-a-target="share-button"]:only-child)');
         hide(config.hideHypeTrain, '.sticky-community-highlight:has([aria-controls="hype-train-expanded-view"], #hype-train-expanded-view), #hype-train-expanded-view');
         hide(config.hideSubscribe, '[data-a-target="subscribe-button"], [data-a-target="subscribe-button-dropdown"]');
