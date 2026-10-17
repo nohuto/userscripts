@@ -2,6 +2,68 @@
 
 Each feature can be changed via the `config` object, which has main & sub settings, whenever the main is disabled, all sub settings won't be used. You can use these scripts via e.g. [violentmonkey](https://github.com/Violentmonkey/Violentmonkey) (`New > New from file > Save & Close`, or raw URLs & `Install from URL`).
 
+<details>
+<summaryOverview:</summary>
+
+- [YouTube](#youtube)
+  - [theaterMode](#theatermode)
+  - [preferredQuality](#preferredquality)
+  - [sponsorBlock](#sponsorblock)
+    - [sponsorCategories](#sponsorcategories)
+    - [sponsorMinVotes](#sponsorminvotes)
+    - [sponsorNotifications](#sponsornotifications)
+    - [sponsorHashing](#sponsorhashing)
+    - [sponsorServer](#sponsorserver)
+  - [deArrow](#dearrow)
+    - [replaceTitles](#replacetitles)
+    - [replaceThumbnails](#replacethumbnails)
+  - [filterVideos](#filtervideos)
+    - [hideMembersOnly](#hidemembersonly)
+    - [hideBuyOrRent](#hidebuyorrent)
+    - [filterTitles](#filtertitles)
+    - [filterChannels](#filterchannels)
+    - [filterMinDuration](#filterminduration)
+  - [blockShorts](#blockshorts)
+  - [masthead (top bar)](#masthead-top-bar)
+  - [guide](#guide)
+  - [feeds](#feeds)
+    - [hideFilterChips](#hidefilterchips)
+    - [hideSearchShelves](#hidesearchshelves)
+    - [hideMostRelevant](#hidemostrelevant)
+    - [hideThumbnails](#hidethumbnails)
+  - [watchPage](#watchpage)
+    - [hideJoin](#hidejoin)
+    - [hideSuperThanks](#hidesuperthanks)
+    - [hideComments](#hidecomments)
+    - [hideDescription](#hidedescription)
+    - [hideRelatedVideos](#hiderelatedvideos)
+  - [gridItemsPerRow](#griditemsperrow)
+  - [disableInlinePlayback](#disableinlineplayback)
+  - [disableAnimations](#disableanimations)
+- [Twitch](#twitch)
+  - [blockAds](#blockads)
+  - [keepTabActive](#keeptabactive)
+  - [preferredQuality](#preferredquality-1)
+  - [theatreMode](#theatremode)
+  - [topNav](#topnav)
+  - [sideNav](#sidenav)
+    - [hideStories](#hidestories)
+    - [hideRecommendedCategories](#hiderecommendedcategories)
+  - [removeCarousel](#removecarousel)
+  - [hidePromoted](#hidepromoted)
+  - [channelPage](#channelpage)
+    - [hideGoals](#hidegoals)
+    - [hideChannelSkins](#hidechannelskins)
+    - [hideCelebrations](#hidecelebrations)
+  - [chat](#chat)
+    - [hidePowerUpsAndRewards](#hidepowerupsandrewards)
+    - [hideWatchStreaks](#hidewatchstreaks)
+    - [hideUserNotices](#hideusernotices)
+  - [sevenTVEmotes](#seventvemotes)
+  - [compactChat](#compactchat)
+
+</details>
+
 ## YouTube
 
 ```powershell
