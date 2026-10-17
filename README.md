@@ -291,9 +291,10 @@ Opens channel pages in theatre mode once per channel.
 
 #### hideStories
 
-Stories row (that icon and stories):
+Stories row (that icon and stories), also the stories row at the top of the '*Following*' page:
 
 ![](assets/twitch/hideStories.png?raw=true)
+![](assets/twitch/hideStoriesFollowing.png?raw=true)
 
 #### hideRecommendedCategories
 
